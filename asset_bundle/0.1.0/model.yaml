@@ -151,6 +151,6 @@ features:
     retrainable: null
     # The following features should be modified from away from null to a supported format specification if you want
     # your model to have platform support for results, drift, or explanations.
-    resultsFormat: classification
-    driftFormat: null
+    resultsFormat: textClassification
+    driftFormat: textClassification
     explanationFormat: textClassification
