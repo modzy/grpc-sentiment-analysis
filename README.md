@@ -1,4 +1,4 @@
-# grpc-sentiment-anlysis
+# grpc-sentiment-analysis
 
 ## About this Repository
 
