@@ -1,5 +1,9 @@
 import json
+import sys
+import string
+import numpy as np
 from typing import Dict, List
+from lime import lime_text
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
@@ -103,7 +107,50 @@ class SentimentAnalysis:
         This corresponds to the Status remote procedure call.
         """
         self.model = SentimentIntensityAnalyzer()
+        self.output_classes = ["negative", "neutral", "positive"]
 
+    def predict(self, text):
+        '''
+        This method replicates self.predict, except it does not include "compound" as an output class
+        '''
+        all_probs = []
+        for item in text:
+            results = self.model.polarity_scores(item)
+            probs = [v for v in results.values()][:3]
+            all_probs.append(probs)
+
+        probs_np = np.array(all_probs)
+
+        return probs_np
+
+
+    def get_explainability(self, text):
+        # set the random seeds for repeatability
+        explainer = lime_text.LimeTextExplainer(random_state=0)
+        exp = explainer.explain_instance(
+            text, 
+            self.predict, 
+            top_labels=1, 
+            num_samples=5000,
+            num_features=40
+        )
+
+        # filter out any negative explanation scores
+        as_map = [tup for tup in exp.as_map()[exp.available_labels()[0]] if (tup[1] >= 0)]
+        as_list = [tup for tup in exp.as_list(label=exp.available_labels()[0]) if (tup[1] >= 0)]
+
+        # take only the top 3 highest weighted words if there are at least 3 positive values
+        if len(as_map) <3:
+            num_samples = len(as_map)
+        else:
+            num_samples = 3
+        
+        # convert explanation to index, word, score format to be returned 
+        explanation_result = {"wordImportance": [{"index": int(as_map[i][0]),"word": as_list[i][0],"score": as_list[i][1]} for i in range(num_samples)]}
+        
+        return explanation_result
+    
+    
     def handle_single_input(self, model_input: Dict[str, bytes], detect_drift: bool, explain: bool) -> Dict[str, bytes]:
         """
         This corresponds to the Run remote procedure call for single inputs.
@@ -113,14 +160,19 @@ class SentimentAnalysis:
         # You are responsible for processing these files in a manner that is specific to your model, and producing
         # inference, drift, and explainability results where appropriate.
         input_txt_contents = model_input["input.txt"].decode()
-
-        results = self.model.polarity_scores(input_txt_contents)
-        formatted_results = [{"class": x[0],"score": x[1]} for x in results.items()]
+        probs = self.predict([input_txt_contents])
+        probs_list = probs.tolist()[0]
+        formatted_results = [{"class": label,"score": score} for label, score in zip(self.output_classes, probs_list)]
         formatted_results.sort(key=lambda x: x["score"],reverse=True)
+        top_pred_index = self.output_classes.index(formatted_results[0]["class"])
         inference_result = {"classPredictions": formatted_results}
-        explanation_result = None
         drift_result = None
+        if not explain:
+            explanation_result = None
+        else:
+            explanation_result = self.get_explainability(input_txt_contents)
 
+        
         # Load the results that your model produced into the standardized output format. If you model ran into
         # an error that you would like to handle internal, you will instead use the `get_failure_json_structure`
         # function in order to produce an error output.
