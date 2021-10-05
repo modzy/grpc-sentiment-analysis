@@ -1,18 +1,44 @@
 # Please consult the README if you need help in selecting a base image
-FROM 326081595054.dkr.ecr.us-east-1.amazonaws.com/data-science/custom-images/modzy-py3.8:latest as application
+FROM nvidia/cuda:10.2-base-ubuntu18.04
 
+ENV LANG=C.UTF-8 \
+    DEBIAN_FRONTEND=noninteractive
 
-# Create the application working directory
 WORKDIR /opt/app
 
-# create a system group and user with no login shell and access restricted
-# to the application
-RUN groupadd --system modzy-group && \
-    useradd --system --shell /bin/false --group modzy-group modzy-user && \
-    mkdir /home/modzy-user && \
-    chown --recursive modzy-user:modzy-group /opt/app /home/modzy-user
-USER modzy-user
+RUN apt-get update \
+&& apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    git \
+    make \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    wget \
+    curl \
+    llvm \
+    libncurses5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libffi-dev \
+    liblzma-dev \
+    libgl1-mesa-glx \
+&& rm -rf /var/lib/apt/lists/*
 
+ENV PYTHON_VERSION=3.9.5 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBTYECODE=1 \
+    PYENV_ROOT="/.pyenv" \
+    PATH="/.pyenv/bin:/.pyenv/shims:${PATH}"
+
+RUN git clone --depth=1 https://github.com/pyenv/pyenv.git /.pyenv && \
+    pyenv install ${PYTHON_VERSION} && \
+    pyenv global ${PYTHON_VERSION}
 # copy application files into the container image
 # NOTE: to avoid overly large container size, only copy the files actually needed by
 #       explicitly specifying the needed files with the `COPY` command or adjusting
@@ -29,19 +55,9 @@ ENV PSC_MODEL_PORT=45000 \
 ARG CIRCLE_REPOSITORY_URL
 LABEL com.modzy.git.source="${CIRCLE_REPOSITORY_URL}"
 
-# Please select one of the following methods for installing your python dependencies within the model container
-
-# 1. Use pip directly
-COPY requirements.txt ./
+ADD pyproject.toml poetry.lock ./
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+   pip install poetry && \
+   poetry install --no-dev
 
-CMD ["python", "-m", "grpc_model.src.model_server"]
-
-# 2. Use a virtual envrionment
-#ADD pyproject.toml poetry.lock ./
-#RUN pip install --no-cache-dir --upgrade pip && \
-#    pip install poetry && \
-#    poetry install --no-dev
-#
-#ENTRYPOINT ["poetry", "run", "python", "-m", "grpc_model.src.model_server"]
+ENTRYPOINT ["poetry", "run", "python", "-m", "grpc_model.src.model_server"]
