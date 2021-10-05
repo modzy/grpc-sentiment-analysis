@@ -10,7 +10,7 @@ This is a gRPC + HTTP/2 implementation of the [Open Source Vader Sentiment Analy
 
 Clone the repository:
 
-```git clone https://github.com/modzy/grpc-sentiment-anlysis.git```
+```git clone https://github.com/modzy/grpc-sentiment-analysis.git```
 
 ## Usage
 
@@ -22,11 +22,11 @@ The following usage instructions demonstrate how to build the container image, r
 
 From the parent directory of this repository, build the container image.
 
-```docker build -t grpc-sentiment-anlysis .```
+```docker build -t grpc-sentiment-analysis .```
 
 Run the container interactively.
 
-```docker run -p 45000:45000 -it grpc-sentiment-anlysis:latest```
+```docker run -p 45000:45000 -it grpc-sentiment-analysis:latest```
 
 #### Run a test inside the container
 
