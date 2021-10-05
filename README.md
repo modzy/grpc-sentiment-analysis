@@ -32,7 +32,7 @@ Run the container interactively.
 
 Open a different terminal, and submit a test using poetry and the `grpc_model.src.model_client` module
 
-```poetry run python -m grpc_model.src.model_server``` 
+```poetry run python -m grpc_model.src.model_client``` 
 
 ## Additional Resources
 
